@@ -10,20 +10,27 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.example.expert.domain.common.dto.AuthUser;
 import org.example.expert.domain.user.enums.UserRole;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.List;
 
 @Slf4j
 @RequiredArgsConstructor
+@Component
 public class JwtFilter implements Filter {
 
     private final JwtUtil jwtUtil;
 
-    @Override
+/*    @Override
     public void init(FilterConfig filterConfig) throws ServletException {
         Filter.super.init(filterConfig);
-    }
+    }*/
 
     @Override
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException, ServletException {
@@ -55,14 +62,21 @@ public class JwtFilter implements Filter {
                 return;
             }
 
-            UserRole userRole = UserRole.valueOf(claims.get("userRole", String.class));
+//            UserRole userRole = UserRole.valueOf(claims.get("userRole", String.class));
+            Long userId = Long.parseLong(claims.getSubject());
+            String email = claims.get("email").toString();
+            String userRole = claims.get("userRole").toString();
+            String nickname = claims.get("nickname").toString();
 
-            httpRequest.setAttribute("userId", Long.parseLong(claims.getSubject()));
-            httpRequest.setAttribute("email", claims.get("email"));
-            httpRequest.setAttribute("userRole", claims.get("userRole"));
-            httpRequest.setAttribute("nickname", claims.get("nickname"));
+            httpRequest.setAttribute("userId", userId);
+            httpRequest.setAttribute("email", email);
+            httpRequest.setAttribute("userRole", userRole);
+            httpRequest.setAttribute("nickname", nickname);
 
-            if (url.startsWith("/admin")) {
+            AuthUser authUser = new AuthUser(userId, email, UserRole.of(userRole));
+            SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(authUser, null, List.of(new SimpleGrantedAuthority("ROLE_" + authUser.getUserRole()))));
+
+/*            if (url.startsWith("/admin")) {
                 // 관리자 권한이 없는 경우 403을 반환합니다.
                 if (!UserRole.ADMIN.equals(userRole)) {
                     httpResponse.sendError(HttpServletResponse.SC_FORBIDDEN, "관리자 권한이 없습니다.");
@@ -70,7 +84,7 @@ public class JwtFilter implements Filter {
                 }
                 chain.doFilter(request, response);
                 return;
-            }
+            }*/
 
             chain.doFilter(request, response);
         } catch (SecurityException | MalformedJwtException e) {
@@ -88,8 +102,8 @@ public class JwtFilter implements Filter {
         }
     }
 
-    @Override
+/*    @Override
     public void destroy() {
         Filter.super.destroy();
-    }
+    }*/
 }
